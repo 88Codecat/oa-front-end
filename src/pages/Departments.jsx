@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
-import { departmentAPI } from '../utils/api';
+import React from 'react';
+import { departmentAPI, authAPI } from '../utils/api';
 
 const Departments = () => {
   const [departments, setDepartments] = useState([]);
+  const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingDepartment, setEditingDepartment] = useState(null);
@@ -16,6 +18,7 @@ const Departments = () => {
 
   useEffect(() => {
     loadDepartments();
+    loadUsers();
     // 获取当前用户角色
     const user = JSON.parse(sessionStorage.getItem('user'));
     if (user) {
@@ -23,19 +26,24 @@ const Departments = () => {
     }
   }, []);
 
-  useEffect(() => {
-    loadDepartments();
-  }, []);
-
   const loadDepartments = async () => {
     try {
       setLoading(true);
       const data = await departmentAPI.getList();
-      setDepartments(data.data || []);
+      setDepartments(data || []);
     } catch (error) {
       console.error('加载部门失败:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadUsers = async () => {
+    try {
+      const data = await authAPI.getUsers();
+      setUsers(data.data || []);
+    } catch (error) {
+      console.error('加载用户失败:', error);
     }
   };
 
@@ -88,19 +96,36 @@ const Departments = () => {
     });
   };
 
-  const buildDepartmentTree = (parentId = null) => {
-    return departments
-      .filter(dept => (parentId === null && !dept.parent_id) || dept.parent_id == parentId)
-      .map(dept => ({
-        ...dept,
-        children: buildDepartmentTree(dept.id)
-      }));
+  const flattenDepartments = (depts, result = []) => {
+    depts.forEach(dept => {
+      result.push(dept);
+      if (dept.children) {
+        flattenDepartments(dept.children, result);
+      }
+    });
+    return result;
+  };
+
+  const getAvailableParents = (currentDeptId) => {
+    const allDepts = flattenDepartments(departments);
+    const getDeptIds = (depts, ids = []) => {
+      depts.forEach(dept => {
+        ids.push(dept.id);
+        if (dept.children) {
+          getDeptIds(dept.children, ids);
+        }
+      });
+      return ids;
+    };
+
+    const excludeIds = currentDeptId ? getDeptIds(allDepts.filter(d => d.id === currentDeptId), []) : [];
+    return allDepts.filter(d => !excludeIds.includes(d.id));
   };
 
   const renderDepartmentRow = (dept, level = 0) => {
     const paddingLeft = level * 20;
     return (
-      <>
+      <React.Fragment key={dept.id}>
         <tr>
           <td style={{ paddingLeft: `${paddingLeft}px` }}>
             {level > 0 && <span className="tree-indent">└─</span>}
@@ -119,15 +144,13 @@ const Departments = () => {
           </td>
         </tr>
         {dept.children && dept.children.map(child => renderDepartmentRow(child, level + 1))}
-      </>
+      </React.Fragment>
     );
   };
 
   if (loading) {
     return <div className="loading">加载中...</div>;
   }
-
-  const departmentTree = buildDepartmentTree();
 
   return (
     <div className="departments-page">
@@ -158,7 +181,8 @@ const Departments = () => {
               </tr>
             </thead>
             <tbody>
-              {departmentTree.map(dept => renderDepartmentRow(dept))}
+              {departments.map(dept => renderDepartmentRow(dept))}
+              {departments.length === 0 && <tr><td colSpan="4" style={{textAlign: 'center', padding: '20px'}}>暂无部门</td></tr>}
             </tbody>
           </table>
         )}
@@ -182,14 +206,13 @@ const Departments = () => {
                 />
               </div>
               <div className="form-group">
-                <label>上级部门ID</label>
+                <label>上级部门</label>
                 <select
                   value={formData.parent_id}
                   onChange={(e) => setFormData({...formData, parent_id: e.target.value})}
                 >
                   <option value="">无（顶级部门）</option>
-                  {departments
-                    .filter(d => !editingDepartment || d.id !== editingDepartment.id)
+                  {getAvailableParents(editingDepartment?.id)
                     .map(dept => (
                       <option key={dept.id} value={dept.id}>{dept.name}</option>
                     ))
@@ -197,12 +220,19 @@ const Departments = () => {
                 </select>
               </div>
               <div className="form-group">
-                <label>部门经理ID</label>
-                <input
-                  type="number"
+                <label>部门经理</label>
+                <select
                   value={formData.manager_id}
                   onChange={(e) => setFormData({...formData, manager_id: e.target.value})}
-                />
+                >
+                  <option value="">无</option>
+                  {users
+                    .filter(user => user.role === 'admin' || user.role === 'manager')
+                    .map(user => (
+                      <option key={user.id} value={user.id}>{user.username} ({user.role === 'admin' ? '管理员' : '经理'})</option>
+                    ))
+                  }
+                </select>
               </div>
               <div className="form-group">
                 <label>描述</label>

@@ -1,13 +1,16 @@
 import { useState, useEffect } from 'react';
-import { employeeAPI, departmentAPI } from '../utils/api';
+import { employeeAPI, departmentAPI, positionAPI, authAPI } from '../utils/api';
 
 const Employees = () => {
   const [employees, setEmployees] = useState([]);
   const [departments, setDepartments] = useState([]);
+  const [positions, setPositions] = useState([]);
+  const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState(null);
   const [userRole, setUserRole] = useState('');
+  const [pagination, setPagination] = useState({ page: 1, limit: 10, total: 0 });
   const [formData, setFormData] = useState({
     user_id: '',
     employee_no: '',
@@ -25,6 +28,8 @@ const Employees = () => {
   useEffect(() => {
     loadEmployees();
     loadDepartments();
+    loadPositions();
+    loadUsers();
     // 获取当前用户角色
     const user = JSON.parse(sessionStorage.getItem('user'));
     if (user) {
@@ -32,11 +37,16 @@ const Employees = () => {
     }
   }, []);
 
-  const loadEmployees = async () => {
+  const loadEmployees = async (page = 1) => {
     try {
       setLoading(true);
-      const data = await employeeAPI.getList({});
+      const data = await employeeAPI.getList({ page, limit: 10 });
       setEmployees(data.data || []);
+      setPagination({
+        page: data.pagination?.page || page,
+        limit: data.pagination?.limit || 10,
+        total: data.pagination?.total || 0
+      });
     } catch (error) {
       console.error('加载员工失败:', error);
     } finally {
@@ -44,12 +54,45 @@ const Employees = () => {
     }
   };
 
+  const handlePageChange = (newPage) => {
+    if (newPage >= 1 && newPage <= Math.ceil(pagination.total / pagination.limit)) {
+      loadEmployees(newPage);
+    }
+  };
+
   const loadDepartments = async () => {
     try {
       const data = await departmentAPI.getList();
-      setDepartments(data.data || []);
+      const flattenDepts = (depts, result = []) => {
+        depts.forEach(dept => {
+          result.push(dept);
+          if (dept.children) {
+            flattenDepts(dept.children, result);
+          }
+        });
+        return result;
+      };
+      setDepartments(flattenDepts(data || []));
     } catch (error) {
       console.error('加载部门失败:', error);
+    }
+  };
+
+  const loadPositions = async () => {
+    try {
+      const data = await positionAPI.getList();
+      setPositions(data || []);
+    } catch (error) {
+      console.error('加载职位失败:', error);
+    }
+  };
+
+  const loadUsers = async () => {
+    try {
+      const data = await authAPI.getUsers();
+      setUsers(data.data || []);
+    } catch (error) {
+      console.error('加载用户失败:', error);
     }
   };
 
@@ -64,7 +107,7 @@ const Employees = () => {
       setShowModal(false);
       setEditingEmployee(null);
       resetForm();
-      loadEmployees();
+      loadEmployees(pagination.page);
     } catch (error) {
       console.error('保存员工失败:', error);
       alert('保存失败: ' + error.message);
@@ -93,7 +136,7 @@ const Employees = () => {
     if (!window.confirm('确定要删除这个员工吗?')) return;
     try {
       await employeeAPI.delete(id);
-      loadEmployees();
+      loadEmployees(pagination.page);
     } catch (error) {
       console.error('删除员工失败:', error);
       alert('删除失败: ' + error.message);
@@ -157,48 +200,75 @@ const Employees = () => {
         {employees.length === 0 ? (
           <div className="empty-state">暂无员工</div>
         ) : (
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>工号</th>
-                <th>姓名</th>
-                <th>性别</th>
-                <th>部门</th>
-                <th>电话</th>
-                <th>入职日期</th>
-                <th>状态</th>
-                <th>操作</th>
-              </tr>
-            </thead>
-            <tbody>
-              {employees.map(employee => (
-                <tr key={employee.id}>
-                  <td>{employee.employee_no}</td>
-                  <td>{employee.name}</td>
-                  <td>
-                    {employee.gender === 'male' ? '男' : employee.gender === 'female' ? '女' : '其他'}
-                  </td>
-                  <td>{employee.department_name || employee.department_id || '-'}</td>
-                  <td>{employee.phone || '-'}</td>
-                  <td>{employee.hire_date || '-'}</td>
-                  <td>
-                    <span className={`status ${getStatusClass(employee.status)}`}>
-                      {getStatusText(employee.status)}
-                    </span>
-                  </td>
-                  <td>
-                    {userRole !== 'employee' && (
-                      <>
-                        <button className="btn btn-secondary btn-sm" onClick={() => handleEdit(employee)}>编辑</button>
-                        <button className="btn btn-danger btn-sm" onClick={() => handleDelete(employee.id)}>删除</button>
-                      </>
-                    )}
-                    {userRole === 'employee' && <span className="text-muted">只读</span>}
-                  </td>
+          <>
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>工号</th>
+                  <th>姓名</th>
+                  <th>性别</th>
+                  <th>部门</th>
+                  <th>职位</th>
+                  <th>电话</th>
+                  <th>入职日期</th>
+                  <th>状态</th>
+                  <th>操作</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {employees.map(employee => (
+                  <tr key={employee.id}>
+                    <td>{employee.employee_no}</td>
+                    <td>{employee.name}</td>
+                    <td>
+                      {employee.gender === 'male' ? '男' : employee.gender === 'female' ? '女' : '其他'}
+                    </td>
+                    <td>{employee.department_name || employee.department_id || '-'}</td>
+                    <td>{employee.position_title || employee.position_id || '-'}</td>
+                    <td>{employee.phone || '-'}</td>
+                    <td>{employee.hire_date || '-'}</td>
+                    <td>
+                      <span className={`status ${getStatusClass(employee.status)}`}>
+                        {getStatusText(employee.status)}
+                      </span>
+                    </td>
+                    <td>
+                      {userRole !== 'employee' && (
+                        <>
+                          <button className="btn btn-secondary btn-sm" onClick={() => handleEdit(employee)}>编辑</button>
+                          <button className="btn btn-danger btn-sm" onClick={() => handleDelete(employee.id)}>删除</button>
+                        </>
+                      )}
+                      {userRole === 'employee' && <span className="text-muted">只读</span>}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+            <div className="pagination">
+              <button
+                className="btn btn-secondary btn-sm"
+                onClick={() => handlePageChange(pagination.page - 1)}
+                disabled={pagination.page === 1}
+              >
+                上一页
+              </button>
+              <span className="page-info">
+                第 {pagination.page} 页
+                {pagination.total > 0 && (
+                  <>，共 {Math.ceil(pagination.total / pagination.limit)} 页（共 {pagination.total} 条）</>
+                )}
+              </span>
+              <button
+                className="btn btn-secondary btn-sm"
+                onClick={() => handlePageChange(pagination.page + 1)}
+                disabled={pagination.total > 0 && pagination.page >= Math.ceil(pagination.total / pagination.limit)}
+              >
+                下一页
+              </button>
+            </div>
+          </>
         )}
       </div>
 
@@ -212,13 +282,19 @@ const Employees = () => {
             <form onSubmit={handleSubmit}>
               <div className="form-row">
                 <div className="form-group">
-                  <label>用户ID</label>
-                  <input
-                    type="number"
+                  <label>关联用户</label>
+                  <select
                     value={formData.user_id}
                     onChange={(e) => setFormData({...formData, user_id: e.target.value})}
                     required
-                  />
+                  >
+                    <option value="">请选择用户</option>
+                    {users.map(user => (
+                      <option key={user.id} value={user.id}>
+                        {user.username} ({user.email}) - {user.role === 'admin' ? '管理员' : user.role === 'manager' ? '经理' : '员工'}
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 <div className="form-group">
                   <label>工号</label>
@@ -289,24 +365,30 @@ const Employees = () => {
               </div>
               <div className="form-row">
                 <div className="form-group">
-                  <label>部门ID</label>
+                  <label>所属部门</label>
                   <select
                     value={formData.department_id}
                     onChange={(e) => setFormData({...formData, department_id: e.target.value})}
                   >
-                    <option value="">请选择</option>
+                    <option value="">请选择部门</option>
                     {departments.map(dept => (
                       <option key={dept.id} value={dept.id}>{dept.name}</option>
                     ))}
                   </select>
                 </div>
                 <div className="form-group">
-                  <label>职位ID</label>
-                  <input
-                    type="number"
+                  <label>职位</label>
+                  <select
                     value={formData.position_id}
                     onChange={(e) => setFormData({...formData, position_id: e.target.value})}
-                  />
+                  >
+                    <option value="">请选择职位</option>
+                    {positions
+                      .filter(pos => !formData.department_id || pos.department_id === parseInt(formData.department_id))
+                      .map(pos => (
+                        <option key={pos.id} value={pos.id}>{pos.title}</option>
+                      ))}
+                  </select>
                 </div>
               </div>
               <div className="form-group">

@@ -63,6 +63,8 @@ export const authAPI = {
 
   getCurrentUser: () => request('/auth/me'),
 
+  getUsers: () => request('/auth/users/all'),
+
   logout: () => request('/auth/logout', { method: 'POST' }),
 
   changePassword: (passwords) => request('/auth/change-password', {
