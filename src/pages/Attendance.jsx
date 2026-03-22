@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { attendanceAPI, getCurrentEmployee } from '../utils/api';
+import './Attendance.css';
 
 const Attendance = () => {
   const [attendance, setAttendance] = useState([]);
@@ -8,6 +9,8 @@ const Attendance = () => {
   const [stats, setStats] = useState(null);
   const [currentMonth, setCurrentMonth] = useState(new Date().toISOString().slice(0, 7));
   const [employeeId, setEmployeeId] = useState(null);
+  const [userRole, setUserRole] = useState('');
+  const [viewMode, setViewMode] = useState('personal'); // 'personal' or 'department'
 
   const loadEmployeeInfo = useCallback(async () => {
     try {
@@ -24,6 +27,15 @@ const Attendance = () => {
     } catch (error) {
       console.error('获取员工信息失败:', error);
       setEmployeeId(null);
+    }
+
+    try {
+      const user = JSON.parse(sessionStorage.getItem('user'));
+      if (user) {
+        setUserRole(user.role);
+      }
+    } catch (error) {
+      console.error('获取用户角色失败:', error);
     } finally {
       setLoading(false);
     }
@@ -32,12 +44,22 @@ const Attendance = () => {
   const loadAttendance = useCallback(async () => {
     try {
       const [year, month] = currentMonth.split('-');
-      const data = await attendanceAPI.getList({ employee_id: employeeId, start_date: `${year}-${month}-01`, end_date: `${year}-${month}-31` });
+      const params = {
+        start_date: `${year}-${month}-01`,
+        end_date: `${year}-${month}-31`
+      };
+
+      // 根据视图模式和角色决定是否传递 employee_id
+      if (viewMode === 'personal' && employeeId) {
+        params.employee_id = employeeId;
+      }
+
+      const data = await attendanceAPI.getList(params);
       setAttendance(data.data || []);
     } catch (error) {
       console.error('加载考勤记录失败:', error);
     }
-  }, [currentMonth, employeeId]);
+  }, [currentMonth, employeeId, viewMode]);
 
   const loadTodayAttendance = useCallback(async () => {
     try {
@@ -53,7 +75,10 @@ const Attendance = () => {
 
   const loadStats = useCallback(async () => {
     try {
-      if (!employeeId) return;
+      if (viewMode !== 'personal' || !employeeId) {
+        setStats(null);
+        return;
+      }
       const [year, month] = currentMonth.split('-');
       const startDate = `${year}-${month}-01`;
       const endDate = new Date(year, month, 0).toISOString().split('T')[0];
@@ -64,7 +89,7 @@ const Attendance = () => {
     } catch (error) {
       console.error('加载统计信息失败:', error);
     }
-  }, [currentMonth, employeeId]);
+  }, [currentMonth, employeeId, viewMode]);
 
   useEffect(() => {
     // 获取当前用户对应的员工ID
@@ -164,37 +189,55 @@ const Attendance = () => {
           onChange={(e) => setCurrentMonth(e.target.value)}
           className="month-picker"
         />
-      </div>
-
-      {/* 今日打卡卡片 */}
-      <div className="today-card">
-        <h3>今日打卡</h3>
-        <div className="clock-buttons">
-          <button
-            className="btn btn-success btn-large"
-            onClick={handleClockIn}
-            disabled={todayAttendance?.check_in}
-          >
-            {todayAttendance?.check_in ? '已签到' : '上班打卡'}
-          </button>
-          <button
-            className="btn btn-warning btn-large"
-            onClick={handleClockOut}
-            disabled={!todayAttendance?.check_in || todayAttendance?.check_out}
-          >
-            {todayAttendance?.check_out ? '已签退' : '下班签退'}
-          </button>
-        </div>
-        {todayAttendance && (
-          <div className="today-times">
-            <div>签到时间: {todayAttendance.check_in || '--:--:--'}</div>
-            <div>签退时间: {todayAttendance.check_out || '--:--:--'}</div>
-            <div>状态: <span className={`status ${getStatusClass(todayAttendance.status)}`}>
-              {getStatusText(todayAttendance.status)}
-            </span></div>
+        {(userRole === 'admin' || userRole === 'manager') && (
+          <div className="view-toggle">
+            <button
+              className={`btn ${viewMode === 'personal' ? 'btn-primary' : 'btn-secondary'}`}
+              onClick={() => setViewMode('personal')}
+            >
+              个人考勤
+            </button>
+            <button
+              className={`btn ${viewMode === 'department' ? 'btn-primary' : 'btn-secondary'}`}
+              onClick={() => setViewMode('department')}
+            >
+              {userRole === 'admin' ? '全体考勤' : '部门考勤'}
+            </button>
           </div>
         )}
       </div>
+
+      {/* 今日打卡卡片 - 仅个人模式显示 */}
+      {viewMode === 'personal' && (
+        <div className="today-card">
+          <h3>今日打卡</h3>
+          <div className="clock-buttons">
+            <button
+              className="btn btn-success btn-large"
+              onClick={handleClockIn}
+              disabled={todayAttendance?.check_in}
+            >
+              {todayAttendance?.check_in ? '已签到' : '上班打卡'}
+            </button>
+            <button
+              className="btn btn-warning btn-large"
+              onClick={handleClockOut}
+              disabled={!todayAttendance?.check_in || todayAttendance?.check_out}
+            >
+              {todayAttendance?.check_out ? '已签退' : '下班签退'}
+            </button>
+          </div>
+          {todayAttendance && (
+            <div className="today-times">
+              <div>签到时间: {todayAttendance.check_in || '--:--:--'}</div>
+              <div>签退时间: {todayAttendance.check_out || '--:--:--'}</div>
+              <div>状态: <span className={`status ${getStatusClass(todayAttendance.status)}`}>
+                {getStatusText(todayAttendance.status)}
+              </span></div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* 统计卡片 */}
       {stats && (
@@ -220,13 +263,22 @@ const Attendance = () => {
 
       {/* 考勤记录列表 */}
       <div className="attendance-list">
-        <h3>考勤记录</h3>
+        <h3>
+          {viewMode === 'personal' ? '个人考勤记录' :
+           userRole === 'admin' ? '全体考勤记录' : '部门考勤记录'}
+        </h3>
         {attendance.length === 0 ? (
           <div className="empty-state">暂无考勤记录</div>
         ) : (
           <table className="data-table">
             <thead>
               <tr>
+                {viewMode !== 'personal' && (
+                  <>
+                    <th>员工姓名</th>
+                    <th>工号</th>
+                  </>
+                )}
                 <th>日期</th>
                 <th>签到时间</th>
                 <th>签退时间</th>
@@ -237,6 +289,12 @@ const Attendance = () => {
             <tbody>
               {attendance.map(record => (
                 <tr key={record.id}>
+                  {viewMode !== 'personal' && (
+                    <>
+                      <td>{record.employee_name || '-'}</td>
+                      <td>{record.employee_no || '-'}</td>
+                    </>
+                  )}
                   <td>{record.date}</td>
                   <td>{record.check_in || '--:--:--'}</td>
                   <td>{record.check_out || '--:--:--'}</td>
