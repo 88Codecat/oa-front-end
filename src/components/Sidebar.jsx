@@ -1,16 +1,26 @@
-import React from 'react';
+import { useNavigate } from 'react-router-dom';
 
 const Sidebar = ({ activeMenu, onMenuClick, collapsed, visible, onToggleCollapse }) => {
+  const navigate = useNavigate();
+
   const menuItems = [
-    { key: 'dashboard', icon: '📊', text: '工作台' },
-    { key: 'tasks', icon: '📋', text: '任务管理' },
-    { key: 'calendar', icon: '📅', text: '日程安排' },
-    { key: 'documents', icon: '📄', text: '文档中心' },
-    { key: 'approval', icon: '✅', text: '审批流程' },
-    { key: 'contacts', icon: '👥', text: '通讯录' },
-    { key: 'reports', icon: '📈', text: '报表统计' },
-    { key: 'settings', icon: '⚙️', text: '系统设置' }
+    { key: 'dashboard', icon: '📊', text: '工作台', path: '/home' },
+    { key: 'tasks', icon: '📋', text: '任务管理', path: '/tasks' },
+    { key: 'attendance', icon: '⏰', text: '考勤管理', path: '/attendance' },
+    { key: 'announcements', icon: '📢', text: '公告管理', path: '/announcements' },
+    { key: 'employees', icon: '👥', text: '员工管理', path: '/employees' },
+    { key: 'departments', icon: '🏢', text: '部门管理', path: '/departments' },
+    { key: 'salaries', icon: '💰', text: '工资管理', path: '/salaries' },
+    { key: 'messages', icon: '💬', text: '通讯录', path: '/messages' }
   ];
+
+  const handleMenuClick = (item, e) => {
+    e.preventDefault();
+    if (onMenuClick) {
+      onMenuClick(item.key);
+    }
+    navigate(item.path);
+  };
 
   return (
     <div className={`sidebar ${collapsed ? 'collapsed' : ''} ${visible ? 'show' : ''}`}>
@@ -18,19 +28,16 @@ const Sidebar = ({ activeMenu, onMenuClick, collapsed, visible, onToggleCollapse
         {menuItems.map(item => (
           <a
             key={item.key}
-            href="#"
+            href={item.path}
             className={`menu-item ${activeMenu === item.key ? 'active' : ''}`}
-            onClick={(e) => {
-              e.preventDefault();
-              onMenuClick(item.key);
-            }}
+            onClick={(e) => handleMenuClick(item, e)}
           >
             <div className="menu-icon">{item.icon}</div>
             {!collapsed && <span className="menu-text">{item.text}</span>}
           </a>
         ))}
       </div>
-      
+
       <div className="collapse-btn" onClick={onToggleCollapse}>
         {collapsed ? '展开' : '收起'}
       </div>

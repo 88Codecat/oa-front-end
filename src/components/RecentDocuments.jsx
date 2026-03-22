@@ -1,59 +1,122 @@
-import React from 'react';
+import { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { announcementAPI } from '../utils/api';
 
-const RecentDocuments = () => {
-  const documents = [
-    { name: '2024年度计划.docx', type: 'word', size: '2.3MB', date: '2024-01-10' },
-    { name: '项目需求分析.pdf', type: 'pdf', size: '1.8MB', date: '2024-01-09' },
-    { name: '财务报表.xlsx', type: 'excel', size: '3.2MB', date: '2024-01-08' },
-    { name: '会议纪要.docx', type: 'word', size: '0.9MB', date: '2024-01-07' }
-  ];
+const RecentDocuments = forwardRef(({ /* eslint-disable no-unused-vars */ onRefresh }, ref) => {
+  const [announcements, setAnnouncements] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
-  const getFileIcon = (type) => {
-    switch (type) {
-      case 'word': return '📄';
-      case 'pdf': return '📕';
-      case 'excel': return '📊';
-      default: return '📄';
+  const loadAnnouncements = async () => {
+    try {
+      setLoading(true);
+      const data = await announcementAPI.getList({ status: 'published', limit: 5 });
+      setAnnouncements(data.data || data || []);
+    } catch (error) {
+      console.error('加载公告失败:', error);
+    } finally {
+      setLoading(false);
     }
   };
+
+  useEffect(() => {
+    loadAnnouncements();
+  }, []);
+
+  // 暴露刷新方法
+  useImperativeHandle(ref, () => ({
+    loadAnnouncements
+  }));
+
+  const getPriorityIcon = (priority) => {
+    switch (priority) {
+      case 'urgent': return '🔴';
+      case 'high': return '🟠';
+      case 'medium': return '🟡';
+      case 'low': return '🟢';
+      default: return '⚪';
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="card">
+        <div className="card-header">
+          <h3 className="card-title">📰 最新公告</h3>
+        </div>
+        <div className="card-content">
+          <div className="loading">加载中...</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="card">
       <div className="card-header">
-        <h3 className="card-title">
-          📄 最近文档
-        </h3>
-        <span className="card-action">查看全部</span>
+        <h3 className="card-title">📰 最新公告</h3>
+        <span
+          className="card-action"
+          style={{ cursor: 'pointer' }}
+          onClick={() => navigate('/announcements')}
+        >
+          查看全部
+        </span>
       </div>
       <div className="card-content">
-        <div className="data-table">
-          <table>
-            <thead>
-              <tr>
-                <th>文档名称</th>
-                <th>大小</th>
-                <th>修改时间</th>
-              </tr>
-            </thead>
-            <tbody>
-              {documents.map((doc, index) => (
-                <tr key={index}>
-                  <td>
-                    <span style={{ marginRight: '8px' }}>
-                      {getFileIcon(doc.type)}
-                    </span>
-                    {doc.name}
-                  </td>
-                  <td>{doc.size}</td>
-                  <td>{doc.date}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        {announcements.length === 0 ? (
+          <div className="empty-state" style={{ padding: '30px', fontSize: '14px' }}>
+            暂无公告
+          </div>
+        ) : (
+          <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
+            {announcements.map((item) => (
+              <div
+                key={item.id}
+                style={{
+                  padding: '12px 0',
+                  borderBottom: '1px solid #f1f3f4',
+                  cursor: 'pointer'
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+                  <span style={{ fontSize: '12px' }}>
+                    {getPriorityIcon(item.priority)}
+                  </span>
+                  <div style={{ flex: 1 }}>
+                    <div
+                      style={{
+                        fontWeight: '500',
+                        marginBottom: '4px',
+                        fontSize: '14px'
+                      }}
+                    >
+                      {item.title}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: '12px',
+                        color: '#6c757d',
+                        display: '-webkit-box',
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: 'vertical',
+                        overflow: 'hidden'
+                      }}
+                    >
+                      {item.content}
+                    </div>
+                    <div style={{ fontSize: '11px', color: '#999', marginTop: '4px' }}>
+                      {new Date(item.created_at).toLocaleDateString('zh-CN')}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
-};
+});
 
 export default RecentDocuments;
