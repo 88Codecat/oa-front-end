@@ -14,7 +14,14 @@ const getAuthHeaders = () => {
 
 // 通用请求方法
 const request = async (endpoint, options = {}) => {
-  const url = `${API_BASE_URL}${endpoint}`;
+  let url = `${API_BASE_URL}${endpoint}`;
+  
+  // 处理查询参数
+  if (options.params && Object.keys(options.params).length > 0) {
+    const queryString = new URLSearchParams(options.params).toString();
+    url += `${endpoint.includes('?') ? '&' : '?'}${queryString}`;
+  }
+
   const config = {
     ...options,
     headers: {
@@ -38,8 +45,8 @@ const request = async (endpoint, options = {}) => {
     }
 
     // 统一返回数据格式
-    if (data.success !== undefined) {
-      return data.success ? data : data;
+    if (data.success === false) {
+      throw new Error(data.message || '请求失败');
     }
 
     return data;
@@ -70,6 +77,11 @@ export const authAPI = {
   changePassword: (passwords) => request('/auth/change-password', {
     method: 'POST',
     body: JSON.stringify(passwords)
+  }),
+
+  updateRole: (userId, role) => request(`/auth/users/${userId}/role`, {
+    method: 'PUT',
+    body: JSON.stringify({ role })
   })
 };
 
@@ -142,6 +154,36 @@ export const attendanceAPI = {
   getStatistics: (params) => {
     const query = new URLSearchParams(params).toString();
     return request(`/attendance/statistics?${query}`);
+  },
+
+  updateNotes: (id, notes) => request(`/attendance/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify({ notes })
+  })
+};
+
+// 请假API
+export const leaveAPI = {
+  getList: (params) => {
+    const query = new URLSearchParams(params).toString();
+    return request(`/leaves?${query}`);
+  },
+
+  create: (data) => request('/leaves', {
+    method: 'POST',
+    body: JSON.stringify(data)
+  }),
+
+  approve: (id, data) => request(`/leaves/${id}/approve`, {
+    method: 'PUT',
+    body: JSON.stringify(data)
+  }),
+
+  delete: (id) => request(`/leaves/${id}`, { method: 'DELETE' }),
+
+  getStatistics: (params) => {
+    const query = new URLSearchParams(params).toString();
+    return request(`/leaves/statistics?${query}`);
   }
 };
 
@@ -170,6 +212,7 @@ export const employeeAPI = {
 // 部门API
 export const departmentAPI = {
   getList: () => request('/departments'),
+  getPublicList: () => request('/departments/public'),
 
   getDetail: (id) => request(`/departments/${id}`),
 
@@ -285,6 +328,7 @@ export default {
   announcement: announcementAPI,
   task: taskAPI,
   attendance: attendanceAPI,
+  leave: leaveAPI,
   employee: employeeAPI,
   department: departmentAPI,
   position: positionAPI,

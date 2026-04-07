@@ -195,3 +195,131 @@
   padding: 40px;
   color: #666;
 }
+
+/* 请假申请列表 */
+.attendance-page .leave-list {
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  margin-bottom: 20px;
+}
+
+.attendance-page .leave-list h3 {
+  margin: 0 0 15px 0;
+  color: #333;
+}
+
+/* 请假状态 */
+.attendance-page .status-pending {
+  background: #cce5ff;
+  color: #004085;
+}
+
+.attendance-page .status-approved {
+  background: #d4edda;
+  color: #155724;
+}
+
+.attendance-page .status-rejected {
+  background: #f8d7da;
+  color: #721c24;
+}
+
+/* 按钮样式 */
+.attendance-page .btn-sm {
+  padding: 4px 12px;
+  font-size: 12px;
+}
+
+.attendance-page .btn-info {
+  background: #17a2b8;
+  color: white;
+}
+
+.attendance-page .btn-danger {
+  background: #dc3545;
+  color: white;
+}
+
+/* 弹窗样式 */
+.attendance-page .modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.attendance-page .modal-content {
+  background: white;
+  padding: 25px;
+  border-radius: 8px;
+  width: 90%;
+  max-width: 450px;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+.attendance-page .modal-content h3 {
+  margin: 0 0 20px 0;
+  color: #333;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 10px;
+}
+
+.attendance-page .form-group {
+  margin-bottom: 15px;
+}
+
+.attendance-page .form-group label {
+  display: block;
+  margin-bottom: 5px;
+  color: #555;
+  font-weight: 500;
+}
+
+.attendance-page .form-group input,
+.attendance-page .form-group select,
+.attendance-page .form-group textarea {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  box-sizing: border-box;
+}
+
+.attendance-page .form-group textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+.attendance-page .form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+/* 待审批请假 */
+.attendance-page .pending-approvals {
+  border-left: 4px solid #ffc107;
+}
+
+.attendance-page .btn-success {
+  background: #28a745;
+  color: white;
+}
+
+.attendance-page .btn-success:hover {
+  background: #218838;
+}
+
+.attendance-page .btn-danger:hover {
+  background: #c82333;
+}

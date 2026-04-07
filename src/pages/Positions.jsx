@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { positionAPI, departmentAPI } from '../utils/api';
+import '../components/BackButton.css';
 
 const Positions = () => {
   const [positions, setPositions] = useState([]);
@@ -13,6 +14,11 @@ const Positions = () => {
     level: '1',
     description: ''
   });
+
+  // 返回工作台
+  const handleBack = () => {
+    window.location.href = '/home';
+  };
 
   useEffect(() => {
     loadPositions();
@@ -111,6 +117,12 @@ const Positions = () => {
 
   return (
     <div className="positions-page">
+      <div className="page-topbar">
+        <button className="back-btn" onClick={handleBack}>
+          返回工作台
+        </button>
+      </div>
+
       <div className="page-header">
         <h2>职位管理</h2>
         <button className="btn btn-primary" onClick={() => {

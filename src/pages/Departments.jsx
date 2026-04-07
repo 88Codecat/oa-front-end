@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import React from 'react';
 import { departmentAPI, authAPI } from '../utils/api';
+import '../components/BackButton.css';
 
 const Departments = () => {
   const [departments, setDepartments] = useState([]);
@@ -16,6 +17,11 @@ const Departments = () => {
     manager_id: ''
   });
 
+  // 返回工作台
+  const handleBack = () => {
+    window.location.href = '/home';
+  };
+
   useEffect(() => {
     loadDepartments();
     loadUsers();
@@ -30,7 +36,7 @@ const Departments = () => {
     try {
       setLoading(true);
       const data = await departmentAPI.getList();
-      setDepartments(data || []);
+      setDepartments(data.data || data || []);
     } catch (error) {
       console.error('加载部门失败:', error);
     } finally {
@@ -47,18 +53,42 @@ const Departments = () => {
     }
   };
 
+  // 获取指定部门的员工列表
+  const getEmployeesByDepartment = (deptId) => {
+    return users.filter(user => {
+      // 查找该用户对应的员工记录
+      return user.department_id === parseInt(deptId);
+    });
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
       if (editingDepartment) {
+        // 如果设置了新的部门经理
+        if (formData.manager_id && formData.manager_id !== editingDepartment.manager_id) {
+          // 将该员工设置为经理角色
+          await authAPI.updateRole(formData.manager_id, 'manager');
+        }
+        // 如果移除了部门经理
+        if (!formData.manager_id && editingDepartment.manager_id) {
+          // 将原经理降为普通员工
+          await authAPI.updateRole(editingDepartment.manager_id, 'employee');
+        }
         await departmentAPI.update(editingDepartment.id, formData);
       } else {
+        // 新建部门
         await departmentAPI.create(formData);
+        // 如果设置了经理，同时更新角色
+        if (formData.manager_id) {
+          await authAPI.updateRole(formData.manager_id, 'manager');
+        }
       }
       setShowModal(false);
       setEditingDepartment(null);
       resetForm();
       loadDepartments();
+      loadUsers(); // 刷新用户列表
     } catch (error) {
       console.error('保存部门失败:', error);
       alert('保存失败: ' + error.message);
@@ -154,6 +184,12 @@ const Departments = () => {
 
   return (
     <div className="departments-page">
+      <div className="page-topbar">
+        <button className="back-btn" onClick={handleBack}>
+          返回工作台
+        </button>
+      </div>
+
       <div className="page-header">
         <h2>部门管理</h2>
         {userRole === 'admin' && (
@@ -226,13 +262,15 @@ const Departments = () => {
                   onChange={(e) => setFormData({...formData, manager_id: e.target.value})}
                 >
                   <option value="">无</option>
-                  {users
-                    .filter(user => user.role === 'admin' || user.role === 'manager')
+                  {getEmployeesByDepartment(formData.parent_id || editingDepartment?.id)
                     .map(user => (
-                      <option key={user.id} value={user.id}>{user.username} ({user.role === 'admin' ? '管理员' : '经理'})</option>
+                      <option key={user.id} value={user.id}>
+                        {user.username}{user.employee_name ? ` (${user.employee_name})` : ''}
+                      </option>
                     ))
                   }
                 </select>
+                <small className="form-hint">选择本部门的员工作为部门经理</small>
               </div>
               <div className="form-group">
                 <label>描述</label>

@@ -4,7 +4,7 @@ import { authAPI } from '../utils/api';
 
 const Login = () => {
   const [formData, setFormData] = useState({
-    username: '',
+    email: '',
     password: ''
   });
   const [error, setError] = useState('');
@@ -33,7 +33,7 @@ const Login = () => {
         setError(response.message || '登录失败');
       }
     } catch (err) {
-      setError(err.message || '登录失败，请检查用户名和密码');
+      setError(err.message || '登录失败，请检查邮箱和密码');
     } finally {
       setLoading(false);
     }
@@ -46,10 +46,10 @@ const Login = () => {
         <span className="formTitle">登录</span>
         <form onSubmit={handleSubmit}>
           <input
-            type="text"
-            name="username"
-            placeholder="用户名/邮箱"
-            value={formData.username}
+            type="email"
+            name="email"
+            placeholder="邮箱"
+            value={formData.email}
             onChange={handleChange}
             required
           />

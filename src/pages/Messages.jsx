@@ -282,7 +282,7 @@ const Messages = () => {
       <div className="messages-topbar">
         <div className="topbar-left">
           <button className="back-btn" onClick={handleBack}>
-            ← 返回工作台
+            返回工作台
           </button>
           <h1>💬 消息中心</h1>
         </div>

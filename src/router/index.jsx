@@ -39,11 +39,19 @@ const router = createBrowserRouter([
 				element: <Tasks />,
 			},
 			{
+				path: "tasks/:id",
+				element: <Tasks />,
+			},
+			{
 				path: "attendance",
 				element: <Attendance />,
 			},
 			{
 				path: "announcements",
+				element: <Announcements />,
+			},
+			{
+				path: "announcements/:id",
 				element: <Announcements />,
 			},
 			{

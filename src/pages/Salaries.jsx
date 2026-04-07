@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { salaryAPI, employeeAPI } from '../utils/api';
+import '../components/BackButton.css';
 
 const Salaries = () => {
   const [salaries, setSalaries] = useState([]);
@@ -21,6 +22,11 @@ const Salaries = () => {
     status: 'pending',
     notes: ''
   });
+
+  // 返回工作台
+  const handleBack = () => {
+    window.location.href = '/home';
+  };
 
   const loadSalaries = useCallback(async () => {
     try {
@@ -69,19 +75,6 @@ const Salaries = () => {
     } catch (error) {
       console.error('保存工资失败:', error);
       alert('保存失败: ' + error.message);
-    }
-  };
-
-  const handleBatchGenerate = async () => {
-    if (!window.confirm('确定要批量生成本月工资吗?')) return;
-    try {
-      const [year, month] = currentMonth.split('-');
-      await salaryAPI.batchGenerate({ year, month });
-      loadSalaries();
-      alert('批量生成成功!');
-    } catch (error) {
-      console.error('批量生成失败:', error);
-      alert('批量生成失败: ' + error.message);
     }
   };
 
@@ -160,6 +153,12 @@ const Salaries = () => {
 
   return (
     <div className="salaries-page">
+      <div className="page-topbar">
+        <button className="back-btn" onClick={handleBack}>
+          返回工作台
+        </button>
+      </div>
+
       <div className="page-header">
         <h2>工资管理</h2>
         <div className="header-actions">
@@ -169,9 +168,6 @@ const Salaries = () => {
             onChange={(e) => setCurrentMonth(e.target.value)}
             className="month-picker"
           />
-          {userRole === 'manager' && (
-            <button className="btn btn-success" onClick={handleBatchGenerate}>批量生成</button>
-          )}
           {userRole === 'manager' && (
             <button className="btn btn-primary" onClick={() => {
               resetForm();

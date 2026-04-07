@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { employeeAPI, departmentAPI, positionAPI, authAPI } from '../utils/api';
+import '../components/BackButton.css';
 
 const Employees = () => {
   const [employees, setEmployees] = useState([]);
@@ -10,6 +11,7 @@ const Employees = () => {
   const [showModal, setShowModal] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState(null);
   const [userRole, setUserRole] = useState('');
+  const [currentUserDeptId, setCurrentUserDeptId] = useState(null);
   const [pagination, setPagination] = useState({ page: 1, limit: 10, total: 0 });
   const [formData, setFormData] = useState({
     user_id: '',
@@ -25,22 +27,46 @@ const Employees = () => {
     status: 'active'
   });
 
+  // 返回工作台
+  const handleBack = () => {
+    window.location.href = '/home';
+  };
+
   useEffect(() => {
-    loadEmployees();
-    loadDepartments();
-    loadPositions();
-    loadUsers();
-    // 获取当前用户角色
     const user = JSON.parse(sessionStorage.getItem('user'));
     if (user) {
       setUserRole(user.role);
+      // 如果是经理，保存其部门ID
+      if (user.department_id) {
+        setCurrentUserDeptId(user.department_id);
+      } else {
+        // admin用户设置为0，这样useEffect会触发
+        setCurrentUserDeptId(0);
+      }
+    } else {
+      // 未登录用户
+      setCurrentUserDeptId(0);
     }
+    loadDepartments();
+    loadPositions();
+    loadUsers();
   }, []);
 
-  const loadEmployees = async (page = 1) => {
+  // 当 department_id 设置后，加载员工列表
+  const loadEmployees = useCallback(async (page = 1) => {
     try {
       setLoading(true);
-      const data = await employeeAPI.getList({ page, limit: 10 });
+      // 从 sessionStorage 获取当前用户角色
+      const user = JSON.parse(sessionStorage.getItem('user') || '{}');
+      const role = user.role || userRole;
+      const deptId = user.department_id || currentUserDeptId;
+      
+      // 部门经理只能看本部门员工
+      const params = { page, limit: 10 };
+      if (role === 'manager' && deptId) {
+        params.department_id = deptId;
+      }
+      const data = await employeeAPI.getList(params);
       setEmployees(data.data || []);
       setPagination({
         page: data.pagination?.page || page,
@@ -52,7 +78,13 @@ const Employees = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentUserDeptId, userRole]);
+
+  useEffect(() => {
+    if (currentUserDeptId !== null) {
+      loadEmployees();
+    }
+  }, [currentUserDeptId, loadEmployees]);
 
   const handlePageChange = (newPage) => {
     if (newPage >= 1 && newPage <= Math.ceil(pagination.total / pagination.limit)) {
@@ -63,6 +95,7 @@ const Employees = () => {
   const loadDepartments = async () => {
     try {
       const data = await departmentAPI.getList();
+      const deptData = data.data || data || [];
       const flattenDepts = (depts, result = []) => {
         depts.forEach(dept => {
           result.push(dept);
@@ -72,7 +105,7 @@ const Employees = () => {
         });
         return result;
       };
-      setDepartments(flattenDepts(data || []));
+      setDepartments(flattenDepts(deptData));
     } catch (error) {
       console.error('加载部门失败:', error);
     }
@@ -81,7 +114,7 @@ const Employees = () => {
   const loadPositions = async () => {
     try {
       const data = await positionAPI.getList();
-      setPositions(data || []);
+      setPositions(data.data || []);
     } catch (error) {
       console.error('加载职位失败:', error);
     }
@@ -183,9 +216,15 @@ const Employees = () => {
 
   return (
     <div className="employees-page">
+      <div className="page-topbar">
+        <button className="back-btn" onClick={handleBack}>
+          返回工作台
+        </button>
+      </div>
+
       <div className="page-header">
         <h2>员工管理</h2>
-        {userRole !== 'employee' && (
+        {userRole === 'admin' && (
           <button className="btn btn-primary" onClick={() => {
             resetForm();
             setEditingEmployee(null);
@@ -233,13 +272,21 @@ const Employees = () => {
                       </span>
                     </td>
                     <td>
-                      {userRole !== 'employee' && (
+                      {userRole === 'admin' && (
                         <>
                           <button className="btn btn-secondary btn-sm" onClick={() => handleEdit(employee)}>编辑</button>
                           <button className="btn btn-danger btn-sm" onClick={() => handleDelete(employee.id)}>删除</button>
                         </>
                       )}
-                      {userRole === 'employee' && <span className="text-muted">只读</span>}
+                      {userRole === 'manager' && employee.department_id === currentUserDeptId && (
+                        <>
+                          <button className="btn btn-secondary btn-sm" onClick={() => handleEdit(employee)}>编辑</button>
+                          <button className="btn btn-danger btn-sm" onClick={() => handleDelete(employee.id)}>删除</button>
+                        </>
+                      )}
+                      {(userRole === 'employee' || (userRole === 'manager' && employee.department_id !== currentUserDeptId)) && (
+                        <span className="text-muted">只读</span>
+                      )}
                     </td>
                   </tr>
                 ))}

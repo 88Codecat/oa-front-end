@@ -1142,6 +1142,87 @@
   margin-right: 4px;
 }
 
+// 可点击行样式
+.clickable-row {
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+
+  &:hover {
+    background-color: #f0f4ff;
+  }
+}
+
+// 详情弹窗样式
+.task-detail-content,
+.announcement-detail-content {
+  padding: 20px;
+
+  .detail-row {
+    display: flex;
+    align-items: flex-start;
+    margin-bottom: 16px;
+    font-size: 14px;
+
+    label {
+      font-weight: 600;
+      color: #666;
+      min-width: 100px;
+      flex-shrink: 0;
+    }
+
+    span, p {
+      color: #333;
+      margin: 0;
+    }
+
+    &.full-width {
+      flex-direction: column;
+
+      label {
+        margin-bottom: 8px;
+      }
+
+      .detail-content {
+        background: #f8f9fa;
+        padding: 12px;
+        border-radius: 6px;
+        line-height: 1.6;
+        white-space: pre-wrap;
+      }
+    }
+  }
+
+  .progress-display {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: 1;
+
+    .progress-bar {
+      flex: 1;
+      height: 8px;
+      background: #e0e0e0;
+      border-radius: 4px;
+      overflow: hidden;
+
+      .progress-fill {
+        height: 100%;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        transition: width 0.3s;
+      }
+    }
+  }
+
+  .detail-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+    margin-top: 24px;
+    padding-top: 16px;
+    border-top: 1px solid #eee;
+  }
+}
+
 // 职位管理样式
 .positions-page {
   padding: 24px;

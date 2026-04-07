@@ -3,7 +3,7 @@ import StatCard from './StatCard';
 import TaskList from './TaskList';
 import RecentDocuments from './RecentDocuments';
 import QuickActions from './QuickActions';
-import { taskAPI } from '../utils/api';
+import { taskAPI, leaveAPI, attendanceAPI, getCurrentEmployee } from '../utils/api';
 
 const Dashboard = forwardRef((_props, ref) => {
   const [stats, setStats] = useState([
@@ -16,23 +16,42 @@ const Dashboard = forwardRef((_props, ref) => {
   const taskListRef = useRef(null);
   const recentDocsRef = useRef(null);
 
-  // 获取当前用户ID
-  const getCurrentUserId = () => {
+  // 获取当前用户信息
+  const getCurrentUser = () => {
     const userStr = sessionStorage.getItem('user');
     if (userStr) {
       const user = JSON.parse(userStr);
-      return user.id;
+      return { id: user.id, role: user.role };
     }
-    return null;
+    return { id: null, role: null };
+  };
+
+  // 获取日期范围
+  const getToday = () => {
+    const now = new Date();
+    return now.toISOString().split('T')[0];
+  };
+
+  const getWeekRange = () => {
+    const now = new Date();
+    const dayOfWeek = now.getDay() || 7;
+    const monday = new Date(now);
+    monday.setDate(now.getDate() - dayOfWeek + 1);
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    return {
+      start: monday.toISOString().split('T')[0],
+      end: sunday.toISOString().split('T')[0]
+    };
   };
 
   // 加载Dashboard统计数据
   const loadDashboardStats = async () => {
     try {
       setLoading(true);
-      const userId = getCurrentUserId();
-      if (!userId) {
-        console.warn('未找到用户ID，无法加载统计数据');
+      const currentUser = getCurrentUser();
+      
+      if (!currentUser.id) {
         setStats([
           { number: '0', label: '待办任务', change: '+0', positive: false },
           { number: '0', label: '今日完成', change: '+0', positive: true },
@@ -42,46 +61,75 @@ const Dashboard = forwardRef((_props, ref) => {
         return;
       }
 
-      // 获取任务统计（使用用户ID作为assignee_id）
-      const taskStats = await taskAPI.getStatistics({
-        assignee_id: userId
-      });
+      // 获取当前用户的员工信息
+      const employee = await getCurrentEmployee();
+      const employeeId = employee?.id;
+      
+      // 获取日期范围
+      const today = getToday();
+      const weekRange = getWeekRange();
 
-      console.log('Dashboard - 任务统计数据:', taskStats);
+      // 并行获取任务统计、请假统计、考勤统计
+      const [taskStats, leaveData, attendanceStats] = await Promise.all([
+        taskAPI.getStatistics({ 
+          completed_start: today,
+          completed_end: today,
+          start_date: weekRange.start,
+          end_date: weekRange.end
+        }),
+        leaveAPI.getList({ status: 'pending', limit: 100 }),
+        employeeId ? attendanceAPI.getStatistics({ 
+          employee_id: employeeId,
+          start_date: weekRange.start,
+          end_date: weekRange.end
+        }) : Promise.resolve({ data: { present_days: 0 } })
+      ]);
 
-      // 计算待办任务数（pending + in_progress），确保转换为数字
-      const pendingTasks = parseInt(taskStats.pending_tasks || 0) + parseInt(taskStats.in_progress_tasks || 0);
-      const completedTasks = parseInt(taskStats.completed_tasks || 0);
-      const totalTasks = parseInt(taskStats.total_tasks || 0);
+      // 计算待办任务数（pending + in_progress）
+      const taskData = taskStats.data || taskStats || {};
+      const pendingTasks = parseInt(taskData.pending_tasks || 0) + parseInt(taskData.in_progress_tasks || 0);
+      const todayCompleted = parseInt(taskData.completed_in_period || 0);
+      const weekTasks = parseInt(taskData.week_tasks || 0);
 
-      // 计算变化值（基于完成任务数量）
-      const completedChange = completedTasks > 0 ? `+${completedTasks}` : '+0';
+      // 计算待审批请假数量（管理员/经理看到待审批的，普通员工看到自己的）
+      const leaves = leaveData.data || [];
+      const pendingLeaves = leaves.length;
+
+      // 待办任务：任务+需要审批的请假（管理员/经理）
+      let totalPending = pendingTasks;
+      if (currentUser.role === 'admin' || currentUser.role === 'manager') {
+        totalPending += pendingLeaves;
+      }
+
+      // 出勤天数
+      const attendanceData = attendanceStats.data || attendanceStats || {};
+      const presentDays = parseInt(attendanceData.present_days || 0);
 
       // 更新统计数据
       setStats([
         {
-          number: String(pendingTasks),
+          number: String(totalPending),
           label: '待办任务',
           change: '+0',
           positive: false
         },
         {
-          number: String(completedTasks),
+          number: String(todayCompleted),
           label: '今日完成',
-          change: completedChange,
-          positive: completedTasks > 0
+          change: todayCompleted > 0 ? `+${todayCompleted}` : '+0',
+          positive: todayCompleted > 0
         },
         {
-          number: String(totalTasks),
+          number: String(weekTasks),
           label: '本周任务',
-          change: `+${totalTasks}`,
-          positive: totalTasks > 0
+          change: weekTasks > 0 ? `+${weekTasks}` : '+0',
+          positive: weekTasks > 0
         },
         {
-          number: '0',
+          number: String(presentDays),
           label: '出勤天数',
-          change: '+0',
-          positive: true
+          change: presentDays > 0 ? `+${presentDays}` : '+0',
+          positive: presentDays > 0
         }
       ]);
     } catch (error) {

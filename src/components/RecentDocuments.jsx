@@ -69,15 +69,17 @@ const RecentDocuments = forwardRef(({ /* eslint-disable no-unused-vars */ onRefr
             暂无公告
           </div>
         ) : (
-          <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
+          <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
             {announcements.map((item) => (
               <div
                 key={item.id}
+                onClick={() => navigate(`/announcements/${item.id}`)}
                 style={{
                   padding: '12px 0',
                   borderBottom: '1px solid #f1f3f4',
                   cursor: 'pointer'
                 }}
+                className="clickable-row"
               >
                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
                   <span style={{ fontSize: '12px' }}>

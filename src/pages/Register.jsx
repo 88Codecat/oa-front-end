@@ -1,17 +1,31 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, NavLink } from 'react-router-dom';
-import { authAPI } from '../utils/api';
+import { authAPI, departmentAPI } from '../utils/api';
 
 const Register = () => {
   const [formData, setFormData] = useState({
-    username: '',
+    name: '',
     email: '',
     password: '',
-    role: 'employee'
+    department_id: ''
   });
+  const [departments, setDepartments] = useState([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    loadDepartments();
+  }, []);
+
+  const loadDepartments = async () => {
+    try {
+      const data = await departmentAPI.getPublicList();
+      setDepartments(data.data || data || []);
+    } catch (err) {
+      console.error('加载部门失败:', err);
+    }
+  };
 
   const handleChange = (e) => {
     setFormData({
@@ -28,12 +42,18 @@ const Register = () => {
     try {
       const response = await authAPI.register(formData);
       if (response.success) {
+        alert('注册成功！请登录');
         navigate('/login');
       } else {
         setError(response.message || '注册失败');
       }
     } catch (err) {
-      setError(err.message || '注册失败，请重试');
+      // 处理验证错误
+      if (err.message && err.message.includes('验证失败')) {
+        setError(err.message);
+      } else {
+        setError(err.message || '注册失败，请重试');
+      }
     } finally {
       setLoading(false);
     }
@@ -47,11 +67,12 @@ const Register = () => {
         <form onSubmit={handleSubmit}>
           <input
             type="text"
-            name="username"
-            placeholder="账户"
-            value={formData.username}
+            name="name"
+            placeholder="姓名"
+            value={formData.name}
             onChange={handleChange}
             required
+            minLength={2}
           />
           <input
             type="email"
@@ -64,19 +85,22 @@ const Register = () => {
           <input
             type="password"
             name="password"
-            placeholder="密码"
+            placeholder="密码（至少6个字符）"
             value={formData.password}
             onChange={handleChange}
             required
+            minLength={6}
           />
           <select
-            name="role"
-            value={formData.role}
+            name="department_id"
+            value={formData.department_id}
             onChange={handleChange}
+            required
           >
-            <option value="employee">普通员工</option>
-            <option value="manager">经理</option>
-            <option value="admin">管理员</option>
+            <option value="">请选择部门</option>
+            {departments.map(dept => (
+              <option key={dept.id} value={dept.id}>{dept.name}</option>
+            ))}
           </select>
 
           {error && <div className="error-message">{error}</div>}

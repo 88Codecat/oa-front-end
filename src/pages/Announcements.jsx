@@ -1,11 +1,17 @@
 import { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { announcementAPI } from '../utils/api';
+import '../components/BackButton.css';
 
 const Announcements = () => {
+  const { id } = useParams();
+  const navigate = useNavigate();
   const [announcements, setAnnouncements] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingAnnouncement, setEditingAnnouncement] = useState(null);
+  const [detailAnnouncement, setDetailAnnouncement] = useState(null);
+  const [showDetailModal, setShowDetailModal] = useState(false);
   const [formData, setFormData] = useState({
     title: '',
     content: '',
@@ -13,9 +19,25 @@ const Announcements = () => {
     status: 'draft'
   });
 
+  // 返回工作台
+  const handleBack = () => {
+    window.location.href = '/home';
+  };
+
   useEffect(() => {
     loadAnnouncements();
   }, []);
+
+  // 处理URL参数中的公告ID
+  useEffect(() => {
+    if (id) {
+      const announcement = announcements.find(a => String(a.id) === String(id));
+      if (announcement) {
+        setDetailAnnouncement(announcement);
+        setShowDetailModal(true);
+      }
+    }
+  }, [id, announcements]);
 
   const loadAnnouncements = async () => {
     try {
@@ -112,6 +134,12 @@ const Announcements = () => {
 
   return (
     <div className="announcements-page">
+      <div className="page-topbar">
+        <button className="back-btn" onClick={handleBack}>
+          返回工作台
+        </button>
+      </div>
+
       <div className="page-header">
         <h2>公告管理</h2>
         <button className="btn btn-primary" onClick={() => {
@@ -154,6 +182,51 @@ const Announcements = () => {
           ))
         )}
       </div>
+
+      {/* 公告详情弹窗 */}
+      {showDetailModal && detailAnnouncement && (
+        <div className="modal" onClick={() => { setShowDetailModal(false); navigate('/announcements'); }}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>公告详情</h3>
+              <button className="close-btn" onClick={() => { setShowDetailModal(false); navigate('/announcements'); }}>&times;</button>
+            </div>
+            <div className="announcement-detail-content">
+              <div className="detail-row">
+                <label>标题:</label>
+                <span>{detailAnnouncement.title}</span>
+              </div>
+              <div className="detail-row">
+                <label>优先级:</label>
+                <span className={`priority-badge ${getPriorityClass(detailAnnouncement.priority)}`}>
+                  {getPriorityText(detailAnnouncement.priority)}
+                </span>
+              </div>
+              <div className="detail-row">
+                <label>发布时间:</label>
+                <span>{formatDate(detailAnnouncement.publish_date)}</span>
+              </div>
+              <div className="detail-row">
+                <label>作者:</label>
+                <span>{detailAnnouncement.author_name || detailAnnouncement.author_id}</span>
+              </div>
+              <div className="detail-row full-width">
+                <label>公告内容:</label>
+                <p className="detail-content">{detailAnnouncement.content}</p>
+              </div>
+              <div className="detail-actions">
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={() => { setShowDetailModal(false); navigate('/announcements'); }}
+                >
+                  关闭
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showModal && (
         <div className="modal">
