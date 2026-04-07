@@ -67,10 +67,12 @@ const Dashboard = forwardRef((_props, ref) => {
       // 获取当前用户的员工信息
       const employee = await getCurrentEmployee();
       const employeeId = employee?.id;
+      console.log('Dashboard - 当前员工ID:', employeeId, '用户信息:', currentUser);
       
       // 获取日期范围
       const today = getToday();
       const weekRange = getWeekRange();
+      console.log('Dashboard - 日期范围:', { today, weekRange });
 
       // 并行获取任务统计、请假统计、考勤统计
       const [taskStats, leaveData, attendanceStats] = await Promise.all([
@@ -90,11 +92,17 @@ const Dashboard = forwardRef((_props, ref) => {
         }) : Promise.resolve({ data: { present_days: 0 } })
       ]);
 
+      console.log('Dashboard - 任务统计返回:', taskStats);
+      console.log('Dashboard - 请假列表返回:', leaveData);
+      console.log('Dashboard - 考勤统计返回:', attendanceStats);
+
       // 计算待办任务数（pending + in_progress）
       const taskData = taskStats.data || taskStats || {};
       const pendingTasks = parseInt(taskData.pending_tasks || 0) + parseInt(taskData.in_progress_tasks || 0);
       const todayCompleted = parseInt(taskData.completed_in_period || 0);
       const weekTasks = parseInt(taskData.week_tasks || 0);
+
+      console.log('Dashboard - 解析后数据:', { pendingTasks, todayCompleted, weekTasks });
 
       // 计算待审批请假数量（管理员/经理看到待审批的，普通员工看到自己的）
       const leaves = leaveData.data || [];
@@ -109,6 +117,8 @@ const Dashboard = forwardRef((_props, ref) => {
       // 出勤天数
       const attendanceData = attendanceStats.data || attendanceStats || {};
       const presentDays = parseInt(attendanceData.present_days || 0);
+
+      console.log('Dashboard - 最终统计数据:', { totalPending, todayCompleted, weekTasks, presentDays });
 
       // 更新统计数据
       setStats([
