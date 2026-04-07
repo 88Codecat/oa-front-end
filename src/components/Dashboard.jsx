@@ -3,6 +3,7 @@ import StatCard from './StatCard';
 import TaskList from './TaskList';
 import RecentDocuments from './RecentDocuments';
 import QuickActions from './QuickActions';
+import AnnouncementTicker from './AnnouncementTicker';
 import { taskAPI, leaveAPI, attendanceAPI, getCurrentEmployee } from '../utils/api';
 
 const Dashboard = forwardRef((_props, ref) => {
@@ -13,6 +14,8 @@ const Dashboard = forwardRef((_props, ref) => {
     { number: '0', label: '出勤天数', change: '+0', positive: true }
   ]);
   const [loading, setLoading] = useState(true);
+  const [showAnnouncementModal, setShowAnnouncementModal] = useState(false);
+  const [selectedAnnouncement, setSelectedAnnouncement] = useState(null);
   const taskListRef = useRef(null);
   const recentDocsRef = useRef(null);
 
@@ -75,13 +78,15 @@ const Dashboard = forwardRef((_props, ref) => {
           completed_start: today,
           completed_end: today,
           start_date: weekRange.start,
-          end_date: weekRange.end
+          end_date: weekRange.end,
+          _t: Date.now()  // 防止缓存
         }),
-        leaveAPI.getList({ status: 'pending', limit: 100 }),
+        leaveAPI.getList({ status: 'pending', limit: 100, _t: Date.now() }),
         employeeId ? attendanceAPI.getStatistics({ 
           employee_id: employeeId,
           start_date: weekRange.start,
-          end_date: weekRange.end
+          end_date: weekRange.end,
+          _t: Date.now()  // 防止缓存
         }) : Promise.resolve({ data: { present_days: 0 } })
       ]);
 
@@ -173,8 +178,18 @@ const Dashboard = forwardRef((_props, ref) => {
     handleGlobalRefresh
   }));
 
+  // 处理公告点击
+  const handleAnnouncementClick = (announcement) => {
+    setSelectedAnnouncement(announcement);
+    setShowAnnouncementModal(true);
+  };
+
   return (
     <>
+      {/* 公告滚动通知 */}
+      <AnnouncementTicker onItemClick={handleAnnouncementClick} />
+
+      {/* 统计卡片 */}
       <div className="dashboard-grid">
         {stats.map((stat, index) => (
           <StatCard key={index} {...stat} loading={loading} />
@@ -186,6 +201,32 @@ const Dashboard = forwardRef((_props, ref) => {
         <RecentDocuments ref={recentDocsRef} onRefresh={loadDashboardStats} />
         <QuickActions onRefresh={handleGlobalRefresh} />
       </div>
+
+      {/* 公告详情弹窗 */}
+      {showAnnouncementModal && selectedAnnouncement && (
+        <div className="modal-overlay" onClick={() => setShowAnnouncementModal(false)}>
+          <div className="modal-content announcement-modal" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>{selectedAnnouncement.title}</h3>
+              <button className="modal-close" onClick={() => setShowAnnouncementModal(false)}>×</button>
+            </div>
+            <div className="modal-body">
+              <div className="announcement-meta">
+                <span className={`priority-tag ${selectedAnnouncement.priority}`}>
+                  {selectedAnnouncement.priority === 'high' ? '重要' : 
+                   selectedAnnouncement.priority === 'medium' ? '一般' : '普通'}
+                </span>
+                <span className="announcement-date">
+                  发布时间: {new Date(selectedAnnouncement.publish_date || selectedAnnouncement.created_at).toLocaleDateString('zh-CN')}
+                </span>
+              </div>
+              <div className="announcement-content">
+                {selectedAnnouncement.content}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 });
