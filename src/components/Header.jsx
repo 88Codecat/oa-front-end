@@ -7,6 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import { useState, useEffect, useCallback } from 'react';
 import { messageAPI } from '../utils/api';
 import wsClient from '../utils/websocket';
+import EmployeeTooltip from './EmployeeTooltip';
 
 const Header = ({ onToggleSidebar }) => {
   const navigate = useNavigate();
@@ -56,7 +57,7 @@ const Header = ({ onToggleSidebar }) => {
     <div className="header">
       <div className="logo">
         <div className="logo-icon">OA</div>
-        <span>智能办公系统</span>
+        <span>办公系统</span>
       </div>
 
       <div className="user-info">
@@ -65,11 +66,15 @@ const Header = ({ onToggleSidebar }) => {
           {unreadCount > 0 && <div className="badge">{unreadCount}</div>}
         </div>
 
-        <div className="user-avatar">
-          <span>{userInitial}</span>
-        </div>
+        <EmployeeTooltip>
+          <div className="user-avatar">
+            <span>{userInitial}</span>
+          </div>
+        </EmployeeTooltip>
 
-        <span className="username">{user.username || '用户'}</span>
+        <EmployeeTooltip>
+          <span className="username">{user.username || '用户'}</span>
+        </EmployeeTooltip>
 
         <button
           className="logout-btn"

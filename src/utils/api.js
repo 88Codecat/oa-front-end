@@ -309,7 +309,10 @@ export const messageAPI = {
   getUnreadCount: () => request('/messages/unread/count'),
 
   // 删除消息
-  delete: (messageId) => request(`/messages/${messageId}`, { method: 'DELETE' })
+  delete: (messageId) => request(`/messages/${messageId}`, { method: 'DELETE' }),
+
+  // 删除对话
+  deleteConversation: (conversationId) => request(`/messages/conversation/${conversationId}`, { method: 'DELETE' })
 };
 
 // 获取当前用户员工信息

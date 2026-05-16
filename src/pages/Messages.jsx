@@ -174,6 +174,28 @@ const Messages = () => {
     }
   };
 
+  // 删除对话
+  const handleDeleteConversation = async (conversationId, e) => {
+    e.stopPropagation();
+    if (!window.confirm('确定要删除此对话吗？对话中的所有消息都将被删除。')) return;
+
+    try {
+      await messageAPI.deleteConversation(conversationId);
+      // 如果当前选中的对话被删除，清空聊天区域
+      if (selectedConversation?.id === conversationId) {
+        setSelectedConversation(null);
+        setSelectedContact(null);
+        setMessages([]);
+      }
+      // 重新加载对话列表
+      await loadConversations();
+      await loadUnreadCount();
+    } catch (error) {
+      console.error('删除对话失败:', error);
+      alert('删除失败');
+    }
+  };
+
   // 退出登录
   const handleLogout = () => {
     if (window.confirm('确定要退出登录吗？')) {
@@ -362,6 +384,13 @@ const Messages = () => {
                         <div className="unread-badge">{conv.unread_count}</div>
                       )}
                     </div>
+                    <button
+                      className="conv-delete-btn"
+                      onClick={(e) => handleDeleteConversation(conv.id, e)}
+                      title="删除对话"
+                    >
+                      ×
+                    </button>
                   </div>
                 ))
               ) : (
